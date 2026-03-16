@@ -11,7 +11,7 @@ import SwiftUI
 struct CoffeediaApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            CoffeeBuilderView()
         }
     }
 }
