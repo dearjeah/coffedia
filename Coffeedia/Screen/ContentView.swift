@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import FoundationModels
 
 
 struct CoffeeBuilderView: View {
     @State private var ingredients: [String] = []
     @State private var showAlert = false
     @State private var showResult = false
+    @State private var showAppleIntelligenceAlert = false
     @State private var selectedResult: DrinkResult? = nil
     
     let options: [(name: String, symbol: String)] = [
@@ -77,17 +79,25 @@ struct CoffeeBuilderView: View {
                         }
                         
                         ActionButton(title: "Get Result", backgroundColor: Color("CoffeeBrown")) {
-                            if let match = drinksLibrary.first(where: { Set($0.requiredIngredients) == Set(ingredients) }) {
-                                selectedResult = match
-                            } else {
-                                selectedResult = DrinkResult(
-                                    name: "Your Custom Creation",
-                                    image: "mug.fill",
-                                    ratio: ingredients.joined(separator: " + "),
-                                    description: "A unique blend of your chosen ingredients. Experiment and enjoy your personalized drink!",
-                                    requiredIngredients: ingredients
-                                )
+                            switch SystemLanguageModel.default.availability {
+                            case .unavailable(.appleIntelligenceNotEnabled):
+                                showAppleIntelligenceAlert.toggle()
+                            case .available:
+                                Task { await callFoundationModel()}
+                            default:
+                                if let match = drinksLibrary.first(where: { Set($0.requiredIngredients) == Set(ingredients) }) {
+                                    selectedResult = match
+                                } else {
+                                    selectedResult = DrinkResult(
+                                        name: "Your Custom Creation",
+                                        image: "mug.fill",
+                                        ratio: ingredients.joined(separator: " + "),
+                                        description: "A unique blend of your chosen ingredients. Experiment and enjoy your personalized drink!",
+                                        requiredIngredients: ingredients
+                                    )
+                                }
                             }
+                            
                         }
                     }
                     
@@ -98,6 +108,13 @@ struct CoffeeBuilderView: View {
                       message: Text("You can only choose up to 5 ingredients."),
                       dismissButton: .default(Text("OK")))
             }
+            .alert(isPresented: $showAppleIntelligenceAlert) {
+                Alert(
+                    title: Text("Apple Intelligence is not enabled"),
+                    message: Text("Please enable your Apple Intelligence in System Settings"),
+                    dismissButton: .default(Text("Got it!"))
+                )
+            }
             .sheet(item: $selectedResult) { result in
                 VStack(spacing: 20) {
                     Spacer()
@@ -105,11 +122,8 @@ struct CoffeeBuilderView: View {
                         .font(.title.bold())
                         .foregroundColor(Color("CoffeeBrown"))
                     
-                    Image(systemName: result.image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 100, height: 100)
-                        .foregroundColor(Color("CoffeeBrown"))
+                    Text(result.image)
+                        .font(.largeTitle)
                     
                     Text("Ratio: \(result.ratio)")
                         .font(.subheadline)
@@ -128,6 +142,24 @@ struct CoffeeBuilderView: View {
                     }
                 }
             }
+        }
+    }
+    
+    func callFoundationModel() async {
+        let session = LanguageModelSession(instructions: """
+            You are a coffee experts who is very knowledgable in coffee and brewing. Your job is to help the person to find a perfect name of coffee, coffee ratio, and explain why it's called the name of coffee according to added ingredients.
+            Make the description as easy to understand for beginner.
+            """)
+        let addedIngredients = Set(ingredients)
+        do {
+            let response = try await session.respond(
+                to: "Create a coffee from \(addedIngredients)",
+                generating: DrinkResult.self
+            )
+            print(response.content)
+            selectedResult = response.content
+        } catch {
+            print(error)
         }
     }
 }

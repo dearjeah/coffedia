@@ -5,14 +5,22 @@
 //  Created by Delvina J on 09/03/26.
 //
 
+import Foundation
+import FoundationModels
 import SwiftUI
 
+@Generable(description: "The bots response to the ingredients resulting the drink result")
 struct DrinkResult: Identifiable {
     var id = UUID()
+    @Guide(description: "the name of the coffee")
     let name: String
+    @Guide(description: "system icon reference from sf symbols that represent the name of coffee")
     let image: String
+    @Guide(description: "perfect ratio of the required ingredients")
     let ratio: String
+    @Guide(description: "coffee description")
     let description: String
+    @Guide(description: "required ingredients to make the coffee")
     let  requiredIngredients: [String]
     
     static func getDrinkResult() -> [DrinkResult] {
